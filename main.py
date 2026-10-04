@@ -2,6 +2,7 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 import approvals
+import ratelimit
 from audit import get_logs, init_db, log_decision
 from auth import authenticate
 from dlp import scan_sensitive
@@ -35,6 +36,11 @@ def check(request: ToolRequest, x_api_key: str = Header(default=None)):
     if agent_id is None:
         log_decision("unauthenticated", request.tool, "BLOCK", "Missing or invalid API key")
         raise HTTPException(status_code=401, detail="Missing or invalid API key")
+
+    # Layer 0.5: rate limit
+    if not ratelimit.allow(agent_id):
+        log_decision(agent_id, request.tool, "BLOCK", "Rate limit exceeded")
+        raise HTTPException(status_code=429, detail="Too many requests")
 
     # Layer 1: permission
     result = check_permission(agent_id, request.tool)
