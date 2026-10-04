@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentShield Dashboard</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0f1115; color: #e6e6e6; margin: 0; padding: 24px; }
+  h1 { margin-top: 0; }
+  .bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  input { padding: 8px; width: 340px; max-width: 100%; background: #1a1d24; color: #e6e6e6; border: 1px solid #333; border-radius: 6px; }
+  button { padding: 8px 16px; background: #c2185b; color: white; border: 0; border-radius: 6px; cursor: pointer; }
+  #status { margin-bottom: 12px; color: #9aa0a6; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #262a33; font-size: 14px; }
+  th { color: #9aa0a6; }
+  .ALLOW, .APPROVED { color: #4caf50; font-weight: 600; }
+  .BLOCK, .DENIED { color: #f44336; font-weight: 600; }
+  .PENDING_APPROVAL { color: #ffb300; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>AgentShield Dashboard</h1>
+<div class="bar">
+  <input id="key" type="password" placeholder="Admin key">
+  <button id="load">Load logs</button>
+</div>
+<div id="status">Enter the admin key to view the audit log.</div>
+<table>
+  <thead><tr><th>Time</th><th>Agent</th><th>Tool</th><th>Decision</th><th>Reason</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<script>
+  let adminKey = "";
+  let timer = null;
+
+  async function loadLogs() {
+    const status = document.getElementById("status");
+    const response = await fetch("/logs?limit=100", { headers: { "x-api-key": adminKey } });
+    if (!response.ok) {
+      status.textContent = "Access denied (" + response.status + "). Check the admin key.";
+      return;
+    }
+    const logs = await response.json();
+    const rows = document.getElementById("rows");
+    rows.replaceChildren();
+
+    for (const log of logs) {
+      const tr = document.createElement("tr");
+      const cells = [
+        new Date(log.timestamp).toLocaleString(),
+        log.agent_id,
+        log.tool,
+        log.decision,
+        log.reason,
+      ];
+      cells.forEach((text, i) => {
+        const td = document.createElement("td");
+        td.textContent = text;            // textContent, never innerHTML
+        if (i === 3) td.className = log.decision;
+        tr.appendChild(td);
+      });
+      rows.appendChild(tr);
+    }
+    status.textContent = logs.length + " entries, refreshed " + new Date().toLocaleTimeString();
+  }
+
+  document.getElementById("load").addEventListener("click", () => {
+    adminKey = document.getElementById("key").value.trim();
+    clearInterval(timer);
+    loadLogs();
+    timer = setInterval(loadLogs, 5000);
+  });
+</script>
+</body>
+</html>

@@ -1,3 +1,4 @@
+from fastapi.responses import HTMLResponse
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
@@ -27,6 +28,11 @@ def require_admin(api_key):
 @app.get("/")
 def home():
     return {"project": "AgentShield", "status": "running"}
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard():
+    with open("dashboard.html", encoding="utf-8") as f:
+        return f.read()
 
 
 @app.post("/check")
